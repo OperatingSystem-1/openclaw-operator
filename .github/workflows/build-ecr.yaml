@@ -1,0 +1,52 @@
+name: Build and Push to ECR
+
+on:
+  push:
+    branches: [main]
+
+env:
+  GO_VERSION: '1.25'
+  AWS_REGION: us-east-2
+  ECR_REPO: 856898221895.dkr.ecr.us-east-2.amazonaws.com/openclaw-operator
+
+jobs:
+  build-push:
+    name: Build and Push
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Run tests
+        run: go test ./internal/resources/ -v -count=1
+
+      - name: Build Linux binary
+        run: CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -o manager cmd/main.go
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to ECR
+        run: aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin 856898221895.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
+
+      - name: Build and push image
+        run: |
+          SHA=$(git rev-parse --short HEAD)
+          cat > Dockerfile.ecr <<'DOCKERFILE'
+          FROM gcr.io/distroless/static:nonroot
+          WORKDIR /
+          COPY manager /manager
+          USER 65532:65532
+          ENTRYPOINT ["/manager"]
+          DOCKERFILE
+          docker build -f Dockerfile.ecr -t ${{ env.ECR_REPO }}:${SHA} -t ${{ env.ECR_REPO }}:latest .
+          docker push ${{ env.ECR_REPO }}:${SHA}
+          docker push ${{ env.ECR_REPO }}:latest
+          echo "Pushed ${{ env.ECR_REPO }}:${SHA}"
