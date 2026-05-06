@@ -1078,9 +1078,14 @@ func TestBuildStatefulSet_PostStart_ConfigMapRef(t *testing.T) {
 	sts := BuildStatefulSet(instance, "", nil, nil, nil)
 	main := sts.Spec.Template.Spec.Containers[0]
 
-	if main.Lifecycle == nil || main.Lifecycle.PostStart == nil {
-		t.Fatal("expected postStart lifecycle hook with configMapRef")
+	// When configMapRef is set, the postStart hook should be SKIPPED.
+	// The entrypoint handles config restoration via config-patch.
+	// The postStart hook races with the entrypoint and overwrites the
+	// config mid-read, blocking gateway startup.
+	if main.Lifecycle != nil && main.Lifecycle.PostStart != nil {
+		t.Fatal("postStart lifecycle hook should be skipped when configMapRef is set")
 	}
+	return // rest of test no longer applies
 
 	// PostStart should use openclaw.json (operator-managed key), not the
 	// external CM's custom key, because the operator-managed CM always

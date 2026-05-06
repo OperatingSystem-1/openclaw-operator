@@ -401,13 +401,22 @@ func buildMainContainer(instance *openclawv1alpha1.OpenClawInstance, gatewayToke
 	// every container start. This prevents crashloops when the agent modifies
 	// its own config and then crashes -- without this, the broken config
 	// persists because init containers don't re-run on container restarts.
-	if cmd := buildConfigRestoreCommand(instance); cmd != "" {
-		container.Lifecycle = &corev1.Lifecycle{
-			PostStart: &corev1.LifecycleHandler{
-				Exec: &corev1.ExecAction{
-					Command: []string{"sh", "-c", cmd},
+	//
+	// SKIP when configMapRef is set: the entrypoint already handles config
+	// restoration via config-patch. The postStart hook races with the entrypoint
+	// and overwrites the config mid-read, causing the gateway to detect a
+	// "Config overwrite" and restart its config loading — which can block the
+	// HTTP server from binding and fail the startup probe.
+	hasConfigMapRef := instance.Spec.Config.ConfigMapRef != nil && instance.Spec.Config.ConfigMapRef.Name != ""
+	if !hasConfigMapRef {
+		if cmd := buildConfigRestoreCommand(instance); cmd != "" {
+			container.Lifecycle = &corev1.Lifecycle{
+				PostStart: &corev1.LifecycleHandler{
+					Exec: &corev1.ExecAction{
+						Command: []string{"sh", "-c", cmd},
+					},
 				},
-			},
+			}
 		}
 	}
 
