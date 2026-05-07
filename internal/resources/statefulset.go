@@ -418,6 +418,12 @@ func buildMainContainer(instance *openclawv1alpha1.OpenClawInstance, gatewayToke
 				},
 			}
 		}
+	} else {
+		// Explicitly nil out lifecycle to remove any existing postStart hook.
+		// Without this, CreateOrUpdate won't clear a previously-set lifecycle
+		// because Go's zero value for *Lifecycle is nil which gets omitted
+		// from the merge patch.
+		container.Lifecycle = nil
 	}
 
 	// Add probes
