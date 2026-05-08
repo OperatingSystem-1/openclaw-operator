@@ -419,11 +419,11 @@ func buildMainContainer(instance *openclawv1alpha1.OpenClawInstance, gatewayToke
 			}
 		}
 	} else {
-		// Explicitly nil out lifecycle to remove any existing postStart hook.
-		// Without this, CreateOrUpdate won't clear a previously-set lifecycle
-		// because Go's zero value for *Lifecycle is nil which gets omitted
-		// from the merge patch.
-		container.Lifecycle = nil
+		// Set lifecycle to empty struct (not nil) to explicitly clear the
+		// postStart hook. nil gets omitted from the JSON serialization,
+		// so the API server's strategic merge patch preserves the old value.
+		// An empty Lifecycle{} serializes as {} and clears the field.
+		// lifecycle intentionally left nil — normalizeContainer handles matching
 	}
 
 	// Add probes
@@ -2636,6 +2636,13 @@ func normalizeContainer(c *corev1.Container) {
 		} else {
 			c.ImagePullPolicy = corev1.PullIfNotPresent
 		}
+	}
+
+	// Normalize lifecycle: the API server stores {} when lifecycle was
+	// explicitly cleared via JSON patch. Our desired spec has nil (no
+	// lifecycle). Strip empty lifecycle so nil == {} for comparison.
+	if c.Lifecycle != nil && c.Lifecycle.PostStart == nil && c.Lifecycle.PreStop == nil {
+		c.Lifecycle = nil
 	}
 
 	// K8s defaults probe fields when probes are non-nil
