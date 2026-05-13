@@ -920,7 +920,7 @@ func TestBuildStatefulSet_ConfigVolume_ConfigMapRef(t *testing.T) {
 	assertVolumeMount(t, initC.VolumeMounts, "config", "/config")
 
 	// Verify the command starts with copying openclaw.json (not the custom key)
-	expectedPrefix := "cp /config/'openclaw.json' /data/openclaw.json"
+	expectedPrefix := "rm -f /data/openclaw.json && cp /config/'openclaw.json' /data/openclaw.json"
 	if len(initC.Command) != 3 || !strings.HasPrefix(initC.Command[2], expectedPrefix) {
 		t.Errorf("init container command should start with %q, got %v", expectedPrefix, initC.Command)
 	}
@@ -950,7 +950,7 @@ func TestBuildStatefulSet_ConfigMapRef_DefaultKey(t *testing.T) {
 	if len(initContainers) != 4 {
 		t.Fatalf("expected 4 init containers (init-config + init-uv + init-pip + init-plugin-runtime-deps), got %d", len(initContainers))
 	}
-	expectedPrefix := "cp /config/'openclaw.json' /data/openclaw.json"
+	expectedPrefix := "rm -f /data/openclaw.json && cp /config/'openclaw.json' /data/openclaw.json"
 	if !strings.HasPrefix(initContainers[0].Command[2], expectedPrefix) {
 		t.Errorf("init container command should start with %q, got %q", expectedPrefix, initContainers[0].Command[2])
 	}
@@ -4794,7 +4794,7 @@ func TestBuildInitScript_ConfigOnly(t *testing.T) {
 	}
 
 	script := BuildInitScript(instance, nil, nil, nil)
-	expected := "cp /config/'openclaw.json' /data/openclaw.json\n" + operatorSeedLines
+	expected := "rm -f /data/openclaw.json && cp /config/'openclaw.json' /data/openclaw.json\n" + operatorSeedLines
 	if script != expected {
 		t.Errorf("unexpected script:\ngot:  %q\nwant: %q", script, expected)
 	}
@@ -4810,7 +4810,7 @@ func TestBuildInitScript_WorkspaceOnly(t *testing.T) {
 	}
 
 	script := BuildInitScript(instance, nil, nil, nil)
-	expected := "cp /config/'openclaw.json' /data/openclaw.json\nmkdir -p /data/workspace/'memory'\nmkdir -p /data/workspace\n[ -f /data/workspace/'BOOTSTRAP.md' ] || cp /workspace-init/'BOOTSTRAP.md' /data/workspace/'BOOTSTRAP.md'\n[ -f /data/workspace/'ENVIRONMENT.md' ] || cp /workspace-init/'ENVIRONMENT.md' /data/workspace/'ENVIRONMENT.md'\n[ -f /data/workspace/'SOUL.md' ] || cp /workspace-init/'SOUL.md' /data/workspace/'SOUL.md'"
+	expected := "rm -f /data/openclaw.json && cp /config/'openclaw.json' /data/openclaw.json\nmkdir -p /data/workspace/'memory'\nmkdir -p /data/workspace\n[ -f /data/workspace/'BOOTSTRAP.md' ] || cp /workspace-init/'BOOTSTRAP.md' /data/workspace/'BOOTSTRAP.md'\n[ -f /data/workspace/'ENVIRONMENT.md' ] || cp /workspace-init/'ENVIRONMENT.md' /data/workspace/'ENVIRONMENT.md'\n[ -f /data/workspace/'SOUL.md' ] || cp /workspace-init/'SOUL.md' /data/workspace/'SOUL.md'"
 	if script != expected {
 		t.Errorf("unexpected script:\ngot:  %q\nwant: %q", script, expected)
 	}
@@ -4865,7 +4865,7 @@ func TestBuildInitScript_Both(t *testing.T) {
 	if len(lines) != 8 {
 		t.Fatalf("expected 8 lines, got %d:\n%s", len(lines), script)
 	}
-	if lines[0] != "cp /config/'openclaw.json' /data/openclaw.json" {
+	if lines[0] != "rm -f /data/openclaw.json && cp /config/'openclaw.json' /data/openclaw.json" {
 		t.Errorf("line 0: %q", lines[0])
 	}
 	if lines[1] != "mkdir -p /data/workspace/'memory'" {
@@ -4898,7 +4898,7 @@ func TestBuildInitScript_DirsOnly(t *testing.T) {
 	}
 
 	script := BuildInitScript(instance, nil, nil, nil)
-	expected := "cp /config/'openclaw.json' /data/openclaw.json\nmkdir -p /data/workspace/'memory'\nmkdir -p /data/workspace/'tools/scripts'\n" + operatorSeedLines
+	expected := "rm -f /data/openclaw.json && cp /config/'openclaw.json' /data/openclaw.json\nmkdir -p /data/workspace/'memory'\nmkdir -p /data/workspace/'tools/scripts'\n" + operatorSeedLines
 	if script != expected {
 		t.Errorf("unexpected script:\ngot:  %q\nwant: %q", script, expected)
 	}
@@ -4913,7 +4913,7 @@ func TestBuildInitScript_ShellQuotesSpecialChars(t *testing.T) {
 	}
 
 	script := BuildInitScript(instance, nil, nil, nil)
-	expected := "cp /config/'openclaw.json' /data/openclaw.json\nmkdir -p /data/workspace\n[ -f /data/workspace/'BOOTSTRAP.md' ] || cp /workspace-init/'BOOTSTRAP.md' /data/workspace/'BOOTSTRAP.md'\n[ -f /data/workspace/'ENVIRONMENT.md' ] || cp /workspace-init/'ENVIRONMENT.md' /data/workspace/'ENVIRONMENT.md'\n[ -f /data/workspace/'it'\\''s a file.md' ] || cp /workspace-init/'it'\\''s a file.md' /data/workspace/'it'\\''s a file.md'"
+	expected := "rm -f /data/openclaw.json && cp /config/'openclaw.json' /data/openclaw.json\nmkdir -p /data/workspace\n[ -f /data/workspace/'BOOTSTRAP.md' ] || cp /workspace-init/'BOOTSTRAP.md' /data/workspace/'BOOTSTRAP.md'\n[ -f /data/workspace/'ENVIRONMENT.md' ] || cp /workspace-init/'ENVIRONMENT.md' /data/workspace/'ENVIRONMENT.md'\n[ -f /data/workspace/'it'\\''s a file.md' ] || cp /workspace-init/'it'\\''s a file.md' /data/workspace/'it'\\''s a file.md'"
 	if script != expected {
 		t.Errorf("unexpected script:\ngot:  %q\nwant: %q", script, expected)
 	}
@@ -4939,7 +4939,7 @@ func TestBuildInitScript_VanillaDeployment(t *testing.T) {
 	instance := newTestInstance("init-empty")
 	script := BuildInitScript(instance, nil, nil, nil)
 	// Vanilla deployments get config copy + ENVIRONMENT.md seeding
-	expected := "cp /config/'openclaw.json' /data/openclaw.json\n" + operatorSeedLines
+	expected := "rm -f /data/openclaw.json && cp /config/'openclaw.json' /data/openclaw.json\n" + operatorSeedLines
 	if script != expected {
 		t.Errorf("unexpected script:\ngot:  %q\nwant: %q", script, expected)
 	}
@@ -5335,15 +5335,20 @@ func TestBuildInitScript_MergeMode(t *testing.T) {
 	if !strings.Contains(script, "fs.existsSync") {
 		t.Errorf("merge mode should check for existing file via fs.existsSync, got: %q", script)
 	}
-	if !strings.Contains(script, "/tmp/merged.json") {
-		t.Errorf("merge mode should write to /tmp/merged.json atomically, got: %q", script)
-	}
 	// Regression: renameSync fails across mount boundaries (EXDEV) - #120
 	if strings.Contains(script, "renameSync") {
 		t.Errorf("merge mode must not use renameSync (fails cross-device between /tmp and /data), got: %q", script)
 	}
-	if !strings.Contains(script, "copyFileSync") {
-		t.Errorf("merge mode should use copyFileSync to move merged config to /data, got: %q", script)
+	// Regression: copyFileSync fails with EPERM when target is root-owned but
+	// init container runs as non-root. Use unlinkSync + writeFileSync instead.
+	if strings.Contains(script, "copyFileSync") {
+		t.Errorf("merge mode must not use copyFileSync (EPERM on root-owned target), got: %q", script)
+	}
+	if !strings.Contains(script, "unlinkSync") {
+		t.Errorf("merge mode should unlinkSync before writeFileSync to avoid EPERM on root-owned files, got: %q", script)
+	}
+	if !strings.Contains(script, "writeFileSync") {
+		t.Errorf("merge mode should use writeFileSync to create new config file, got: %q", script)
 	}
 	// Regression #162: node -e argument must be single-quoted so that
 	// !Array.isArray is not interpreted as bash history expansion.
