@@ -716,21 +716,22 @@ func BuildInitScript(instance *openclawv1alpha1.OpenClawInstance, externalWorksp
 				`__cfgpath=/config/%s node -e '`+
 					`const fs=require("fs");`+
 					`function dm(a,b){const r={...a};for(const k in b){r[k]=b[k]&&typeof b[k]==="object"&&!Array.isArray(b[k])&&r[k]&&typeof r[k]==="object"&&!Array.isArray(r[k])?dm(r[k],b[k]):b[k]}return r}`+
-					`const e="/data/openclaw.json",c=process.env.__cfgpath,t="/tmp/merged.json";`+
+					`const e="/data/openclaw.json",c=process.env.__cfgpath;`+
 					`const base=fs.existsSync(e)?JSON.parse(fs.readFileSync(e,"utf8")):{};`+
 					`const inc=JSON.parse(fs.readFileSync(c,"utf8"));`+
-					`fs.writeFileSync(t,JSON.stringify(dm(base,inc),null,2));`+
-					`fs.copyFileSync(t,e);`+
+					`const out=JSON.stringify(dm(base,inc),null,2);`+
+					`try{fs.unlinkSync(e)}catch(x){}`+
+					`fs.writeFileSync(e,out,{mode:0o664});`+
 					`'`,
 				shellQuote(key)))
 		case instance.Spec.Config.Format == ConfigFormatJSON5:
 			// JSON5 overwrite — convert to standard JSON via npx json5
 			lines = append(lines, fmt.Sprintf(
-				"npx -y json5 /config/%s > /tmp/converted.json && mv /tmp/converted.json /data/openclaw.json",
+				"npx -y json5 /config/%s > /tmp/converted.json && rm -f /data/openclaw.json && mv /tmp/converted.json /data/openclaw.json",
 				shellQuote(key)))
 		default:
 			// Overwrite (default) — operator-managed config always wins
-			lines = append(lines, fmt.Sprintf("cp /config/%s /data/openclaw.json", shellQuote(key)))
+			lines = append(lines, fmt.Sprintf("rm -f /data/openclaw.json && cp /config/%s /data/openclaw.json", shellQuote(key)))
 		}
 	}
 
